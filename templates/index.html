@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NIC Code Semantic Search</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
+    <!-- Language toggle switch styles -->
+    <style>
+        .language-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+        }
+        
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+            margin-left: 10px;
+        }
+        
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #4285f4;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #FF5722;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(30px);
+        }
+        
+        .lang-label {
+            font-weight: 500;
+            margin: 0 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container position-relative">
+        <!-- Language toggle switch -->
+        <div class="language-toggle">
+            <span class="lang-label">English</span>
+            <label class="switch">
+                <input type="checkbox" id="language-toggle">
+                <span class="slider"></span>
+            </label>
+            <span class="lang-label">हिंदी</span>
+        </div>
+        
+        <header class="text-center my-5">
+            <h1 class="t-header">NIC Code Semantic Search</h1>
+            <p class="lead t-subtitle">Search for industry codes and descriptions using natural language</p>
+            <span class="badge bg-primary t-powered">Powered by FAISS</span>
+        </header>
+
+        <div class="search-container">
+            <form id="search-form">
+                <div class="input-group mb-4">
+                    <input type="text" id="search-input" class="form-control form-control-lg" 
+                           placeholder="Describe a business activity or industry..." required>
+                    <button class="btn btn-primary" type="submit">Search</button>
+                    <button id="mic-button" class="btn btn-primary" type="button">🎤</button>
+                </div>
+                <div class="form-text text-muted">
+                    Example searches: "bakery", "software development", "wheat cultivation", "manufacturing of plastic products"
+                </div>
+                <div class="form-text text-muted mt-2">
+                    <small><i>Note: Only results with a valid Sub-Class will be displayed</i></small>
+                </div>
+                
+                <!-- Advanced search options toggle -->
+                <a class="advanced-search-toggle" id="advanced-search-toggle">
+                    Advanced Search Options <span id="toggle-icon">▼</span>
+                </a>
+                
+                <!-- Advanced search options panel -->
+                <div class="advanced-search-options" id="advanced-search-options">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="result-count" class="form-label">Number of results:</label>
+                                <select class="form-select" id="result-count">
+                                    <option value="5">5 results</option>
+                                    <option value="10" selected>10 results</option>
+                                    <option value="20">20 results</option>
+                                    <option value="50">50 results</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="search-mode" class="form-label">Search mode:</label>
+                                <select class="form-select" id="search-mode">
+                                    <option value="standard" selected>Standard search</option>
+                                    <option value="strict">Strict match</option>
+                                    <option value="relaxed">Relaxed match</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" value="" id="show-performance">
+                        <label class="form-check-label" for="show-performance">
+                            Show search performance metrics
+                        </label>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="loading-spinner" id="loading-spinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Searching the database, please wait...</p>
+        </div>
+        
+        <!-- Performance metrics section (hidden by default) -->
+        <div class="performance-metrics" id="performance-metrics" style="display: none;">
+            <div><strong>Search time:</strong> <span id="search-time">-</span> ms</div>
+            <div><strong>FAISS index access:</strong> <span id="index-time">-</span> ms</div>
+            <div><strong>Results processed:</strong> <span id="results-count">-</span></div>
+        </div>
+        
+        <div class="results-container" id="results-container">
+            <h2>Search Results</h2>
+            <div class="alert alert-warning" id="no-results" style="display: none;">
+                No matches found. Try a different search term.
+            </div>
+            <p class="text-muted mb-4"><small>Click on a result card to see detailed information</small></p>
+            
+            <!-- New split layout for results -->
+            <div class="results-split-container">
+                <div class="results-column">
+                    <h3 class="column-title">Valid Industry Codes</h3>
+                    <div id="valid-results-list" class="results-list"></div>
+                    <div id="no-valid-results" class="alert alert-info mt-3" style="display: none;">
+                        No results with valid Sub-Class found.
+                    </div>
+                </div>
+                <div class="results-column">
+                    <h3 class="column-title">Class-Only Results</h3>
+                    <div id="other-results-list" class="results-list"></div>
+                    <div id="no-other-results" class="alert alert-info mt-3" style="display: none;">
+                        No results with valid Class (but missing Sub-Class) found.
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Admin Section (hidden by default) -->
+        <div class="admin-panel mt-5 pt-3" id="admin-panel" style="display: none;">
+            <h4 class="border-bottom pb-2">Admin Panel</h4>
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">FAISS Index Management</h5>
+                    <p class="card-text">Rebuild the FAISS index from stored embeddings in MongoDB.</p>
+                    <button class="btn btn-warning" id="rebuild-index-btn">Rebuild Index</button>
+                    <div class="mt-3" id="rebuild-status" style="display: none;"></div>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Embedding Cache Management</h5>
+                    <p class="card-text">Clear the embedding cache to free up memory and disk space.</p>
+                    <button class="btn btn-danger" id="clear-cache-btn">Clear Cache</button>
+                    <div class="mt-3" id="clear-cache-status" style="display: none;"></div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">FAISS Index Statistics</h5>
+                    <button class="btn btn-info" id="get-stats-btn">Get Index Stats</button>
+                    <div class="mt-3" id="index-stats" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="text-center text-muted py-4">
+        <div class="container">
+            <p>Using semantic search with FAISS (Facebook AI Similarity Search) and MongoDB Atlas</p>
+            <p class="small">Issues? Check browser console (F12) for error details</p>
+            <button class="btn btn-sm btn-link text-muted" id="admin-toggle">Admin</button>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>
+        let isRecording = false;
+
+        function toggleRecording() {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        }
+
+        function startRecording() {
+            fetch('/api/start_recording', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        isRecording = true;
+                        document.getElementById('mic-button').innerText = '⏹️';
+                    }
+                });
+        }
+
+        function stopRecording() {
+            fetch('/api/stop_recording', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        isRecording = false;
+                        document.getElementById('mic-button').innerText = '🎤';
+                        document.getElementById('search-query').value = data.transcript;
+                    }
+                });
+        }
+    </script>
+    <script>
+    // Language translations
+    const translations = {
+        english: {
+            'header': 'NIC Code Semantic Search',
+            'subtitle': 'Search for industry codes and descriptions using natural language',
+            'powered': 'Powered by FAISS',
+            'search_button': 'Search',
+            'placeholder': 'Describe a business activity or industry...',
+            'advanced': 'Advanced Search Options',
+            'results_title': 'Search Results',
+            'valid_codes': 'Valid Industry Codes',
+            'class_only': 'Class-Only Results',
+            'no_results': 'No matches found. Try a different search term.',
+            'no_valid_results': 'No results with valid Sub-Class found.',
+            'no_other_results': 'No results with valid Class (but missing Sub-Class) found.',
+            'searching': 'Searching the database, please wait...',
+            'examples': 'Example searches: "bakery", "software development", "wheat cultivation", "manufacturing of plastic products"',
+            'note': 'Note: Only results with a valid Sub-Class will be displayed',
+            'num_results': 'Number of results:',
+            'search_mode': 'Search mode:',
+            'standard': 'Standard search',
+            'strict': 'Strict match',
+            'relaxed': 'Relaxed match',
+            'show_metrics': 'Show search performance metrics'
+        },
+        hindi: {
+            'header': 'एनआईसी कोड सिमैंटिक खोज',
+            'subtitle': 'प्राकृतिक भाषा का उपयोग करके उद्योग कोड और विवरण खोजें',
+            'powered': 'FAISS द्वारा संचालित',
+            'search_button': 'खोज',
+            'placeholder': 'व्यावसायिक गतिविधि या उद्योग का वर्णन करें...',
+            'advanced': 'उन्नत खोज विकल्प',
+            'results_title': 'खोज परिणाम',
+            'valid_codes': 'वैध उद्योग कोड',
+            'class_only': 'केवल-वर्ग परिणाम',
+            'no_results': 'कोई मिलान नहीं मिला। कोई अलग खोज शब्द आज़माएं।',
+            'no_valid_results': 'कोई वैध उप-वर्ग वाला परिणाम नहीं मिला।',
+            'no_other_results': 'कोई वैध वर्ग (लेकिन उप-वर्ग के बिना) वाला परिणाम नहीं मिला।',
+            'searching': 'डेटाबेस में खोज की जा रही है, कृपया प्रतीक्षा करें...',
+            'examples': 'उदाहरण खोजें: "बेकरी", "सॉफ्टवेयर विकास", "गेहूं की खेती", "प्लास्टिक उत्पादों का निर्माण"',
+            'note': 'नोट: केवल वैध उप-वर्ग वाले परिणाम प्रदर्शित किए जाएंगे',
+            'num_results': 'परिणामों की संख्या:',
+            'search_mode': 'खोज मोड:',
+            'standard': 'मानक खोज',
+            'strict': 'सख्त मिलान',
+            'relaxed': 'आराम मिलान',
+            'show_metrics': 'खोज प्रदर्शन मेट्रिक्स दिखाएं'
+        }
+    };
+
+    // Function to apply translations
+    function applyTranslations(lang) {
+        const dict = translations[lang];
+        
+        // Ensure direction is always LTR for both languages
+        document.documentElement.setAttribute('dir', 'ltr');
+        document.body.style.direction = 'ltr';
+        
+        // Update header and other main elements
+        document.querySelector('.t-header').textContent = dict.header;
+        document.querySelector('.t-subtitle').textContent = dict.subtitle;
+        document.querySelector('.t-powered').textContent = dict.powered;
+        
+        // Update search elements
+        document.querySelector('#search-input').placeholder = dict.placeholder;
+        document.querySelector('#search-form button[type="submit"]').textContent = dict.search_button;
+        document.querySelector('#advanced-search-toggle').firstChild.textContent = dict.advanced + ' ';
+        
+        // Update advanced search options
+        document.querySelector('label[for="result-count"]').textContent = dict.num_results;
+        document.querySelector('label[for="search-mode"]').textContent = dict.search_mode;
+        document.querySelector('option[value="standard"]').textContent = dict.standard;
+        document.querySelector('option[value="strict"]').textContent = dict.strict;
+        document.querySelector('option[value="relaxed"]').textContent = dict.relaxed;
+        document.querySelector('label[for="show-performance"]').textContent = dict.show_metrics;
+        
+        // Update results section
+        document.querySelector('.results-container h2').textContent = dict.results_title;
+        document.querySelector('#no-results').textContent = dict.no_results;
+        document.querySelectorAll('.column-title')[0].textContent = dict.valid_codes;
+        document.querySelectorAll('.column-title')[1].textContent = dict.class_only;
+        document.querySelector('#no-valid-results').textContent = dict.no_valid_results;
+        document.querySelector('#no-other-results').textContent = dict.no_other_results;
+        
+        // Update loading message
+        document.querySelector('#loading-spinner p').textContent = dict.searching;
+        
+        // Update examples and notes
+        document.querySelectorAll('.form-text.text-muted')[0].textContent = dict.examples;
+        document.querySelector('.form-text.text-muted small i').textContent = dict.note;
+    }
+
+    // Set up language toggle functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const languageToggle = document.getElementById('language-toggle');
+        
+        // Initialize language from localStorage
+        const savedLanguage = localStorage.getItem('selectedLanguage') || 'english';
+        
+        // Set initial toggle state
+        languageToggle.checked = (savedLanguage === 'hindi');
+        
+        // Apply initial translations
+        applyTranslations(savedLanguage);
+        
+        // Handle toggle changes
+        languageToggle.addEventListener('change', function() {
+            const language = this.checked ? 'hindi' : 'english';
+            localStorage.setItem('selectedLanguage', language);
+            applyTranslations(language);
+            
+            // Tell the server about the language change
+            fetch('/api/set-language', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ language: language })
+            }).catch(error => {
+                console.error('Error updating language:', error);
+            });
+        });
+    });
+</script>
+</body>
+</html>
