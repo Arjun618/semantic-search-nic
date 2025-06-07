@@ -8,6 +8,7 @@ import sys
 import time
 import threading
 import subprocess
+import webbrowser
 from flask import Flask, render_template, redirect, url_for, jsonify
 import requests
 from pathlib import Path
@@ -203,6 +204,21 @@ def cleanup_services():
                 pass
     service_processes.clear()
 
+def open_browser():
+    """Open the browser to the main portal after a short delay"""
+    def _open():
+        time.sleep(2)  # Wait for Flask to fully start
+        try:
+            print("🌐 Opening browser to http://localhost:3000...")
+            webbrowser.open('http://localhost:3000')
+        except Exception as e:
+            print(f"⚠️  Could not open browser automatically: {e}")
+            print("   Please manually open http://localhost:3000 in your browser")
+    
+    # Run in a separate thread so it doesn't block Flask startup
+    browser_thread = threading.Thread(target=_open, daemon=True)
+    browser_thread.start()
+
 if __name__ == '__main__':
     try:
         # Start all services
@@ -212,6 +228,9 @@ if __name__ == '__main__':
             for name, service in SERVICES.items():
                 if service_status[name]:
                     print(f"  • {service['name']}: {service['url']}")
+            
+            # Open browser automatically
+            open_browser()
             
             # Start the main Flask app
             app.run(debug=True, host='0.0.0.0', port=3000, use_reloader=False)
