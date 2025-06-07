@@ -35,8 +35,10 @@ embeddings_manager = get_embeddings_manager(DEFAULT_MODEL)
 # Path to local JSON file
 json_file_path = os.path.join(os.path.dirname(__file__), "output.json")
 
+
 # Initialize the FAISS index manager
-faiss_manager = FAISSIndexManager()  # No need for connection string now
+faiss_manager = FAISSIndexManager(json_file_path=json_file_path)  
+# No need for connection string now
 
 # Global variable to store data from JSON file
 json_data = []

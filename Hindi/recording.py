@@ -35,41 +35,88 @@ def list_audio_devices():
         print(f"Error listing audio devices: {e}")
         return []
 
+def test_audio_device(device_id):
+    """Test if an audio device is actually available for recording"""
+    try:
+        # Try to open a very short test stream
+        with sd.InputStream(samplerate=16000, channels=1, device=device_id, 
+                           dtype=np.float32, blocksize=1024):
+            log_debug(f"Device {device_id} test successful")
+            return True
+    except Exception as e:
+        log_debug(f"Device {device_id} test failed: {e}")
+        return False
+
 def get_best_input_device():
-    """Find the best available input device"""
+    """Find the best available input device that actually works"""
     try:
         devices = sd.query_devices()
-        # First try to get the default input device
+        
+        # First, try the default input device
         try:
             default = sd.query_devices(kind='input')
-            default_id = default['index'] if 'index' in default else None
+            default_id = default.get('index') if isinstance(default, dict) else None
             if default_id is not None and default.get('max_input_channels', 0) > 0:
-                return default_id
+                if test_audio_device(default_id):
+                    log_debug(f"Using default input device: {default_id}")
+                    return default_id
+                else:
+                    log_debug(f"Default device {default_id} failed test")
         except Exception as e:
             log_debug(f"No suitable default input device: {e}")
         
-        # If default didn't work, find the first device with input channels
+        # If default didn't work, test each device with input channels
         for i, device in enumerate(devices):
             if device.get('max_input_channels', 0) > 0:
-                return i
-                
+                log_debug(f"Testing device {i}: {device['name']}")
+                if test_audio_device(i):
+                    log_debug(f"Found working device: {i}")
+                    return i
+                    
+        log_debug("No working input devices found")
         return None
     except Exception as e:
         log_debug(f"Error finding input device: {e}")
         return None
 
 def _record_loop():
-    """Background thread for continuous recording"""
+    """Background thread for continuous recording with better error handling"""
     global recording, frames
     try:
         device_id = get_best_input_device()
+        if device_id is None:
+            log_debug("No working audio device found, stopping recording")
+            recording = False
+            return
+            
         log_debug(f"Using device ID: {device_id} for recording")
         
-        with sd.InputStream(samplerate=sample_rate, channels=channels, 
-                          device=device_id, callback=_callback):
-            log_debug("Recording stream started successfully")
-            while recording:
-                sd.sleep(100)  # Keep thread alive without blocking
+        # Try different configurations if the first one fails
+        configs = [
+            {'samplerate': sample_rate, 'channels': channels, 'dtype': np.float32},
+            {'samplerate': 44100, 'channels': channels, 'dtype': np.float32},  # Try default sample rate
+            {'samplerate': sample_rate, 'channels': 2, 'dtype': np.float32},     # Try stereo
+            {'samplerate': 44100, 'channels': 2, 'dtype': np.float32},          # Try stereo with default rate
+        ]
+        
+        stream_started = False
+        for config in configs:
+            try:
+                log_debug(f"Trying config: {config}")
+                with sd.InputStream(device=device_id, callback=_callback, **config):
+                    log_debug("Recording stream started successfully")
+                    stream_started = True
+                    while recording:
+                        sd.sleep(100)  # Keep thread alive without blocking
+                    break
+            except Exception as e:
+                log_debug(f"Config failed: {config}, error: {e}")
+                continue
+                
+        if not stream_started:
+            log_debug("All audio configurations failed")
+            recording = False
+            
     except Exception as e:
         log_debug(f"Error in recording loop: {e}")
         recording = False
@@ -78,7 +125,13 @@ def _callback(indata, frame_count, time_info, status):
     """Callback function to continuously receive audio data."""
     if status:
         log_debug(f"Status in recording callback: {status}")
-    frames.append(indata.copy())
+    
+    # Convert to mono if stereo input
+    if indata.shape[1] > 1:
+        mono_data = np.mean(indata, axis=1, keepdims=True)
+        frames.append(mono_data)
+    else:
+        frames.append(indata.copy())
 
 def simulate_recording():
     """Simulate recording when no microphone is available"""
@@ -105,7 +158,7 @@ def simulate_recording():
     return True, "Simulated recording completed successfully"
 
 def start_recording(device_id=None, use_simulation=None):
-    """Start audio recording in a background thread"""
+    """Start audio recording in a background thread with fallback to simulation"""
     global recording, frames, recording_thread, SIMULATION_MODE
     
     if use_simulation is not None:
@@ -116,12 +169,12 @@ def start_recording(device_id=None, use_simulation=None):
         if SIMULATION_MODE:
             return simulate_recording()
     
-        # Get available devices and check if any input devices exist
+        # Get available devices and check if any working input devices exist
         devices = list_audio_devices()
-        input_devices_exist = any(device.get('max_input_channels', 0) > 0 for device in devices)
+        working_device = get_best_input_device()
         
-        if not input_devices_exist:
-            log_debug("No input devices found! Falling back to simulation mode.")
+        if working_device is None:
+            log_debug("No working input devices found! Falling back to simulation mode.")
             SIMULATION_MODE = True
             return simulate_recording()
         
@@ -130,26 +183,27 @@ def start_recording(device_id=None, use_simulation=None):
             recording = True
             frames = []
             
-            # Get best device if none specified
-            if device_id is None:
-                device_id = get_best_input_device()
-                log_debug(f"Selected device ID: {device_id}")
-            
-            # Configure device
-            if device_id is not None:
-                sd.default.device = device_id
-                
             # Start recording thread
             recording_thread = threading.Thread(target=_record_loop, daemon=True)
             recording_thread.start()
+            
+            # Wait a moment to see if recording starts successfully
+            time.sleep(0.5)
+            if not recording:
+                log_debug("Recording failed to start, falling back to simulation")
+                SIMULATION_MODE = True
+                return simulate_recording()
+                
             return True, "Recording started successfully"
         else:
             return False, "Recording already in progress"
     except Exception as e:
         error_message = f"Error starting recording: {str(e)}"
         log_debug(error_message)
+        log_debug("Falling back to simulation mode due to error")
         recording = False
-        return False, error_message
+        SIMULATION_MODE = True
+        return simulate_recording()
 
 def stop_recording(filename="Data Processing/output.wav"):
     """Stop recording, save to file, and transcribe the audio"""
@@ -205,9 +259,12 @@ def stop_recording(filename="Data Processing/output.wav"):
                         sf.write(filename, audio, sample_rate, format='WAV', subtype='PCM_24')
                         log_debug(f"Successfully saved with alternate format")
                         
-                        transcript = transcribe_audio_file(filename)
-                        log_debug(f"Transcription: {transcript}")
-                        return transcript
+                        if not SIMULATION_MODE:
+                            transcript = transcribe_audio_file(filename)
+                            log_debug(f"Transcription: {transcript}")
+                            return transcript
+                        else:
+                            return "यह एक परीक्षण पाठ है"
                     except:
                         # Fallback to simulation if all else fails
                         log_debug("Alternate format failed, using fallback transcript")

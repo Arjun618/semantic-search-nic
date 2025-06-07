@@ -12,6 +12,9 @@ from flask import Flask, render_template, request, jsonify
 from hindi_semantic_search import HindiSemanticSearch
 from recording import start_recording, stop_recording
 
+index_path = os.path.join(os.path.dirname(__file__), "hindi_faiss.index")
+embeddings_file = os.path.join(os.path.dirname(__file__), "output_hindi.json")
+
 # Create a custom JSONEncoder to handle NaN values properly
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -37,9 +40,6 @@ search_engine = None
 def initialize_search_engine():
     """Initialize the search engine with the index"""
     global search_engine
-    
-    index_path = "hindi_faiss.index"
-    embeddings_file = "output_hindi.json"
     
     # Try to load existing index first
     if os.path.exists(index_path):

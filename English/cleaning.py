@@ -3,14 +3,23 @@ import string, re
 from functools import lru_cache
 from spellchecker import SpellChecker
 import time
+import os
 
 spell = SpellChecker()
 
 lis = []
-with open("Data Processing/lemmatized_words.txt", 'r') as file:
-    text = file.read()
-    word_list = text.split()
-    lis.extend(word_list)
+# Get the directory where this script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))
+lemmatized_words_path = os.path.join(script_dir, "Data Processing", "lemmatized_words.txt")
+
+try:
+    with open(lemmatized_words_path, 'r') as file:
+        text = file.read()
+        word_list = text.split()
+        lis.extend(word_list)
+except FileNotFoundError:
+    print(f"Warning: Could not find lemmatized_words.txt at {lemmatized_words_path}")
+    print("Spell correction will use default dictionary only.")
 
 def is_valid(word):
     return word in spell
@@ -30,6 +39,7 @@ def correct_words(text, word_list = lis, cutoff=0.7):
             corrected_text.append(get_best_match(word))
     print(" ".join(corrected_text))
     return " ".join(corrected_text)
+
 
 
 

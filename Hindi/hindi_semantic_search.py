@@ -15,8 +15,8 @@ class HindiSemanticSearch:
     Semantic search for Hindi documents using FAISS
     """
     def __init__(self, 
-                 embeddings_file: Optional[str] = "output_hindi.json",
-                 index_path: Optional[str] = None,
+                 embeddings_file: Optional[str] = "Hindi/output_hindi.json",
+                 index_path: Optional[str] = "Hindi/hindi_faiss.index",
                  model_name: str = "krutrim-ai-labs/Vyakyarth"):
         """
         Initialize Hindi semantic search
