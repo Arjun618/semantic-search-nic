@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semantic Search Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #6366f1;
+            --secondary-color: #8b5cf6;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+            --dark-color: #1f2937;
+            --light-color: #f8fafc;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 3rem;
+            max-width: 800px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .title {
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: var(--dark-color);
+            margin-bottom: 1rem;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: #6b7280;
+            margin-bottom: 3rem;
+        }
+
+        .language-selection {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .language-card {
+            background: linear-gradient(135deg, #fff 0%, #f8fafc 100%);
+            border: 2px solid #e5e7eb;
+            border-radius: 15px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .language-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+            border-color: var(--primary-color);
+        }
+
+        .language-card.available {
+            border-color: var(--success-color);
+        }
+
+        .language-card.unavailable {
+            opacity: 0.6;
+            cursor: not-allowed;
+            border-color: var(--error-color);
+        }
+
+        .language-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .language-card:hover::before,
+        .language-card.available::before {
+            opacity: 1;
+        }
+
+        .language-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+        }
+
+        .language-name {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--dark-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .language-description {
+            color: #6b7280;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .status-indicator {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        .status-indicator.online {
+            background: var(--success-color);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+
+        .status-indicator.offline {
+            background: var(--error-color);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+        }
+
+        .service-info {
+            background: #f1f5f9;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .service-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .status-badge {
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status-badge.online {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .status-badge.offline {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error-color);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .refresh-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            background: var(--secondary-color);
+            transform: scale(1.05);
+        }
+
+        .footer {
+            text-align: center;
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .loading {
+            display: none;
+            color: var(--primary-color);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 2rem 1.5rem;
+            }
+            
+            .title {
+                font-size: 2rem;
+            }
+            
+            .language-selection {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="logo">
+            <i class="fas fa-search"></i>
+        </div>
+        
+        <h1 class="title">Semantic Search Portal</h1>
+        <p class="subtitle">Choose your preferred language for intelligent document search</p>
+        
+        <div class="service-info">
+            <div class="service-status">
+                <h5><i class="fas fa-server"></i> Service Status</h5>
+                <button class="refresh-btn" onclick="refreshStatus()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+            <div id="status-display">
+                <div class="loading">
+                    <i class="fas fa-spinner fa-spin"></i> Checking service status...
+                </div>
+            </div>
+        </div>
+        
+        <div class="language-selection">
+            <div class="language-card" id="english-card" onclick="selectLanguage('english')">
+                <div class="status-indicator offline" id="english-status"></div>
+                <div class="language-icon">
+                    <i class="fas fa-globe-americas"></i>
+                </div>
+                <div class="language-name">English</div>
+                <div class="language-description">
+                    {{ services.english.description }}
+                </div>
+            </div>
+            
+            <div class="language-card" id="hindi-card" onclick="selectLanguage('hindi')">
+                <div class="status-indicator offline" id="hindi-status"></div>
+                <div class="language-icon">
+                    <i class="fas fa-language"></i>
+                </div>
+                <div class="language-name">हिंदी (Hindi)</div>
+                <div class="language-description">
+                    {{ services.hindi.description }}
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><i class="fas fa-info-circle"></i> Powered by FAISS, Transformers, and Flask</p>
+            <p class="mt-2">
+                <small>
+                    <i class="fas fa-code"></i> Main Portal: Port 3000 | 
+                    <i class="fas fa-language"></i> English: Port 5000 | 
+                    <i class="fas fa-language"></i> Hindi: Port 5500
+                </small>
+            </p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let serviceStatus = {};
+
+        async function checkServiceStatus() {
+            try {
+                const response = await fetch('/status');
+                const data = await response.json();
+                serviceStatus = data.services;
+                updateStatusDisplay(data);
+                updateLanguageCards();
+            } catch (error) {
+                console.error('Error checking service status:', error);
+                updateStatusDisplay({ services: { english: false, hindi: false } });
+            }
+        }
+
+        function updateStatusDisplay(data) {
+            const statusDisplay = document.getElementById('status-display');
+            const services = data.details || {};
+            
+            statusDisplay.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-globe-americas"></i> English Service</span>
+                            <span class="status-badge ${data.services.english ? 'online' : 'offline'}">
+                                ${data.services.english ? 'Online' : 'Offline'}
+                            </span>
+                        </div>
+                        ${data.services.english ? `<small class="text-muted">Port: ${services.english?.port || 5000}</small>` : ''}
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-language"></i> Hindi Service</span>
+                            <span class="status-badge ${data.services.hindi ? 'online' : 'offline'}">
+                                ${data.services.hindi ? 'Online' : 'Offline'}
+                            </span>
+                        </div>
+                        ${data.services.hindi ? `<small class="text-muted">Port: ${services.hindi?.port || 5500}</small>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateLanguageCards() {
+            // Update English card
+            const englishCard = document.getElementById('english-card');
+            const englishStatus = document.getElementById('english-status');
+            
+            if (serviceStatus.english) {
+                englishCard.classList.add('available');
+                englishCard.classList.remove('unavailable');
+                englishStatus.classList.add('online');
+                englishStatus.classList.remove('offline');
+            } else {
+                englishCard.classList.add('unavailable');
+                englishCard.classList.remove('available');
+                englishStatus.classList.add('offline');
+                englishStatus.classList.remove('online');
+            }
+
+            // Update Hindi card
+            const hindiCard = document.getElementById('hindi-card');
+            const hindiStatus = document.getElementById('hindi-status');
+            
+            if (serviceStatus.hindi) {
+                hindiCard.classList.add('available');
+                hindiCard.classList.remove('unavailable');
+                hindiStatus.classList.add('online');
+                hindiStatus.classList.remove('offline');
+            } else {
+                hindiCard.classList.add('unavailable');
+                hindiCard.classList.remove('available');
+                hindiStatus.classList.add('offline');
+                hindiStatus.classList.remove('online');
+            }
+        }
+
+        function selectLanguage(language) {
+            if (!serviceStatus[language]) {
+                alert(`${language.charAt(0).toUpperCase() + language.slice(1)} service is currently offline. Please try again later or refresh the page.`);
+                return;
+            }
+            
+            // Show loading state
+            const card = document.getElementById(`${language}-card`);
+            const originalContent = card.innerHTML;
+            card.innerHTML = `
+                <div class="language-icon">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
+                <div class="language-name">Connecting...</div>
+                <div class="language-description">Redirecting to ${language} service...</div>
+            `;
+            
+            // Redirect after a brief delay
+            setTimeout(() => {
+                window.location.href = `/${language}`;
+            }, 1000);
+        }
+
+        async function refreshStatus() {
+            const refreshBtn = document.querySelector('.refresh-btn');
+            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+            refreshBtn.disabled = true;
+            
+            await checkServiceStatus();
+            
+            refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
+            refreshBtn.disabled = false;
+        }
+
+        // Check status on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkServiceStatus();
+            
+            // Auto-refresh status every 30 seconds
+            setInterval(checkServiceStatus, 30000);
+        });
+    </script>
+</body>
+</html>
