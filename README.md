@@ -21,7 +21,7 @@ semantic-search-nic-deploy/
 │   ├── templates/            # HTML templates
 │   └── *.py                  # Core Python modules
 ├── templates/                # Main application templates
-├── streamlit_app.py          # Streamlit unified interface
+├── app.py          # Streamlit unified interface
 └── requirements.txt          # Python dependencies
 ```
 
@@ -105,7 +105,7 @@ The application will automatically download required models on first run:
 The easiest way to use the platform is through the Streamlit interface:
 
 ```bash
-streamlit run streamlit_app.py
+streamlit run app.py
 ```
 
 Access the application at `http://localhost:8501`
@@ -282,7 +282,7 @@ RUN pip install -r requirements.txt
 COPY . .
 EXPOSE 8501
 
-CMD ["streamlit", "run", "streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
 ```
 
 #### Using Docker Compose
@@ -328,7 +328,7 @@ pip install -r requirements.txt
 
 # Run with screen
 screen -S semantic-search
-streamlit run streamlit_app.py --server.port=8501 --server.address=0.0.0.0
+streamlit run app.py --server.port=8501 --server.address=0.0.0.0
 ```
 
 #### Google Cloud Platform
@@ -371,7 +371,7 @@ def require_auth(f):
 ### Adding New Languages
 1. Create language-specific directory (e.g., `Tamil/`)
 2. Implement search class following existing patterns
-3. Add language configuration to `streamlit_app.py`
+3. Add language configuration to `app.py`
 4. Update templates and static files
 5. Add corresponding models and data files
 
@@ -466,7 +466,7 @@ GET /api/system_info
 export DETAILED_LOGS=1
 
 # Run with debug flags
-python -u streamlit_app.py --logger.level=debug
+python -u app.py --logger.level=debug
 ```
 
 ### Log Files
