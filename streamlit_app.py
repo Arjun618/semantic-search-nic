@@ -340,11 +340,9 @@ def initialize_search_engines():
 
             # Try to initialize with index first, then embeddings
             if os.path.exists(hindi_index):
-                st.write("Initializing Hindi engine with index file...")
                 hindi_engine = HindiSemanticSearch(index_path=hindi_index, embeddings_file=None)
                 if hindi_engine and hasattr(hindi_engine, 'index') and hindi_engine.index is not None:
                     st.session_state.search_engines['hindi'] = hindi_engine
-                    st.success("✅ Hindi engine initialized with index")
                 else:
                     st.error("❌ Failed to initialize Hindi engine with index")
                     st.session_state.search_engines['hindi'] = None
