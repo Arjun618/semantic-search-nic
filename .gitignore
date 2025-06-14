@@ -128,17 +128,8 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Project-specific files
-# FAISS index files (large binary files)
-*.index
-*.bin
-faiss_index.*
-hindi_faiss.index
-faiss_id_map.*
 
 # JSON data files (if they're large or contain sensitive data)
-output_hindi.json
-output.json
 translated_output.json
 
 # Audio files
