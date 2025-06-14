@@ -66,7 +66,7 @@ semantic-search-nic-deploy/
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/yourusername/semantic-search-nic-deploy.git
+git clone https://github.com/Arjun618/semantic-search-nic.git
 cd semantic-search-nic-deploy
 ```
 
